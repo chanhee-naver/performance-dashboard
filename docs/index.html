@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>퍼포먼스 대시보드 — 2025 Q1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--border2:#21262d;
+  --text:#e6edf3;--muted:#8b949e;--green:#03C75A;--blue:#4C9BE8;
+  --google:#4285F4;--meta:#1877F2;--naver:#03C75A;
+  --warn:#d29922;--danger:#f85149;--success:#3fb950;
+}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh}
+.container{max-width:1280px;margin:0 auto;padding:24px 20px}
+
+/* header */
+.header{margin-bottom:32px}
+.header-top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.header-icon{font-size:2rem}
+h1{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:800;letter-spacing:-0.02em}
+.date-badge{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:4px 14px;font-size:0.75rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.meta-row{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
+.meta-chip{background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:3px 10px;font-size:0.75rem;color:var(--muted)}
+
+/* KPI grid */
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:32px}
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;transition:border-color .2s,box-shadow .2s;cursor:default}
+.kpi-card:hover{border-color:var(--green);box-shadow:0 4px 16px rgba(3,199,90,.1)}
+.kpi-label{font-size:0.68rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.kpi-value{font-size:1.5rem;font-weight:700;color:var(--text);line-height:1.1;white-space:nowrap;font-family:'JetBrains Mono',monospace}
+.kpi-value.accent{color:var(--green)}
+
+/* section */
+.section-title{font-size:0.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border2)}
+
+/* grid layouts */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:768px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* chart card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px}
+.card-title{font-size:0.875rem;font-weight:600;color:var(--text);margin-bottom:16px}
+.chart-wrap{position:relative}
+
+/* gap badges */
+.gap-row{display:flex;flex-direction:column;gap:10px}
+.gap-item{display:flex;align-items:center;gap:10px}
+.gap-channel{width:52px;font-size:0.8rem;font-weight:600;color:var(--text)}
+.gap-bar-wrap{flex:1;background:var(--border2);border-radius:100px;height:22px;overflow:hidden}
+.gap-bar{height:100%;border-radius:100px;display:flex;align-items:center;padding:0 10px;font-size:0.72rem;font-weight:700;color:#fff;transition:width .6s ease}
+.gap-val{width:44px;text-align:right;font-size:0.8rem;font-weight:600;font-family:'JetBrains Mono',monospace}
+
+/* top10 table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:0.82rem}
+thead tr{border-bottom:1px solid var(--border)}
+th{padding:8px 12px;text-align:left;color:var(--muted);font-weight:600;font-size:0.72rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--border2);color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:600}
+.badge-g{background:rgba(66,133,244,.15);color:#4285F4}
+.badge-m{background:rgba(24,119,242,.15);color:#1877F2}
+.badge-n{background:rgba(3,199,90,.15);color:#03C75A}
+.roas-num{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--green)}
+
+/* insight cards */
+.insight-row{display:flex;flex-direction:column;gap:8px;margin-bottom:24px}
+.insight-card{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:10px;padding:12px 16px;font-size:0.875rem;color:var(--text);line-height:1.6}
+.insight-card.success{border-left-color:var(--success)}
+.insight-card.warning{border-left-color:var(--warn)}
+.insight-card.danger{border-left-color:var(--danger)}
+
+/* footer */
+.footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <span class="header-icon">📊</span>
+      <h1>퍼포먼스 대시보드</h1>
+    </div>
+    <div class="date-badge">📅 2025.01.01 – 2025.03.31</div>
+    <div class="meta-row">
+      <span class="meta-chip">📋 3,420행</span>
+      <span class="meta-chip">📡 채널 3개 (구글·메타·네이버)</span>
+      <span class="meta-chip">🔗 AppsFlyer 어트리뷰션 기준</span>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">총 광고비</div><div class="kpi-value">5.9억</div></div>
+    <div class="kpi-card"><div class="kpi-label">ROAS (AF)</div><div class="kpi-value accent">11.42x</div></div>
+    <div class="kpi-card"><div class="kpi-label">CPR (회원가입당)</div><div class="kpi-value">2,233원</div></div>
+    <div class="kpi-card"><div class="kpi-label">CPA (구매당)</div><div class="kpi-value">6,067원</div></div>
+    <div class="kpi-card"><div class="kpi-label">CTR</div><div class="kpi-value">2.8%</div></div>
+    <div class="kpi-card"><div class="kpi-label">AF 구매수</div><div class="kpi-value">96,660</div></div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <p class="section-title">🔎 자동 인사이트</p>
+  <div class="insight-row">
+    <div class="insight-card success">🏆 ROAS 최고 채널: <strong>네이버 47.16x</strong> &nbsp;|&nbsp; 최저: <strong>메타 4.46x</strong></div>
+    <div class="insight-card warning">📌 구매 갭 주의: 메타 <strong>74.5%</strong> — 어트리뷰션 링크 점검 권장 (기준 80%)</div>
+    <div class="insight-card">🎯 최고 ROAS 캠페인: <strong>[네] NVR_CMP_01_브랜드KW</strong> (129.39x)</div>
+  </div>
+
+  <!-- CHARTS ROW 1 -->
+  <p class="section-title">📺 채널별 성과</p>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">채널별 광고비 (백만원)</div>
+      <div class="chart-wrap"><canvas id="chCost" height="200"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">채널별 ROAS (AF)</div>
+      <div class="chart-wrap"><canvas id="chRoas" height="200"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TREND -->
+  <p class="section-title">📈 일별 트렌드</p>
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-title">ROAS(AF) 일별 추이 &nbsp;<span style="color:var(--muted);font-weight:400;font-size:0.78rem">90일</span></div>
+    <div class="chart-wrap"><canvas id="trendRoas" height="120"></canvas></div>
+  </div>
+
+  <!-- TOP10 + CTYPE -->
+  <p class="section-title">🏆 소재 & 캠페인 분석</p>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">ROAS Top 10 캠페인</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>캠페인</th><th>채널</th><th>ROAS</th></tr></thead>
+          <tbody id="top10Body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">소재 유형별 ROAS (AF)</div>
+      <div class="chart-wrap"><canvas id="ctypeRoas" height="220"></canvas></div>
+    </div>
+  </div>
+
+  <!-- GAP -->
+  <p class="section-title">🔍 어트리뷰션 갭 현황</p>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">채널별 구매 갭 (AF/플랫폼 × 100)</div>
+      <div class="gap-row" id="purGapBars"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">채널별 매출 갭</div>
+      <div class="chart-wrap"><canvas id="gapChart" height="200"></canvas></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span>📊 퍼포먼스 대시보드 · 2025 Q1</span>
+    <span>데이터: AppsFlyer + 구글·메타·네이버 | ROAS = AF매출 / 채널비용</span>
+  </div>
+</div>
+
+<script>
+const D = {"kpi": {"cost": "5.9억", "roas": "11.42x", "cpr": "2,233원", "cpa": "6,067원", "ctr": "2.8%", "af_pur": "96,660", "period": "2025.01.01 – 2025.03.31", "rows": "3,420"}, "channel": {"labels": ["구글", "네이버", "메타"], "cost": [406.5, 53.1, 126.8], "roas": [8.92, 47.16, 4.46], "cpr": [2338.0, 906.0, 4204.0], "ctr": [2.75, 7.46, 1.88]}, "daily": {"labels": ["01/01", "01/02", "01/03", "01/04", "01/05", "01/06", "01/07", "01/08", "01/09", "01/10", "01/11", "01/12", "01/13", "01/14", "01/15", "01/16", "01/17", "01/18", "01/19", "01/20", "01/21", "01/22", "01/23", "01/24", "01/25", "01/26", "01/27", "01/28", "01/29", "01/30", "01/31", "02/01", "02/02", "02/03", "02/04", "02/05", "02/06", "02/07", "02/08", "02/09", "02/10", "02/11", "02/12", "02/13", "02/14", "02/15", "02/16", "02/17", "02/18", "02/19", "02/20", "02/21", "02/22", "02/23", "02/24", "02/25", "02/26", "02/27", "02/28", "03/01", "03/02", "03/03", "03/04", "03/05", "03/06", "03/07", "03/08", "03/09", "03/10", "03/11", "03/12", "03/13", "03/14", "03/15", "03/16", "03/17", "03/18", "03/19", "03/20", "03/21", "03/22", "03/23", "03/24", "03/25", "03/26", "03/27", "03/28", "03/29", "03/30", "03/31"], "roas": [10.32, 11.27, 11.74, 11.81, 11.94, 11.74, 10.58, 10.44, 10.07, 16.18, 10.07, 11.16, 10.14, 10.88, 14.83, 10.41, 11.3, 11.71, 8.98, 11.3, 11.38, 11.7, 10.9, 9.75, 15.78, 9.88, 11.11, 10.13, 11.51, 10.84, 12.86, 10.49, 10.7, 10.41, 10.62, 10.02, 11.46, 11.04, 10.78, 11.91, 16.15, 10.31, 11.51, 10.76, 11.88, 14.61, 10.14, 11.62, 11.36, 11.16, 9.96, 10.94, 11.47, 10.49, 10.95, 13.49, 11.17, 12.04, 10.96, 11.81, 11.08, 12.49, 10.86, 9.23, 10.78, 10.98, 11.53, 11.75, 16.32, 13.03, 10.77, 10.01, 11.71, 16.19, 10.37, 10.1, 12.48, 11.51, 11.01, 9.53, 11.0, 10.74, 11.74, 15.78, 11.65, 11.27, 11.03, 9.8, 10.87, 10.65], "cost": [911.3, 866.9, 933.2, 503.3, 527.6, 634.7, 705.7, 666.4, 717.6, 737.2, 476.2, 506.2, 669.5, 678.2, 695.6, 673.0, 690.0, 527.0, 522.1, 660.5, 722.1, 671.0, 684.9, 692.5, 517.8, 537.8, 662.9, 668.7, 650.7, 664.4, 630.7, 705.2, 650.0, 876.5, 669.5, 705.3, 680.8, 650.3, 510.6, 508.7, 691.9, 715.5, 719.0, 681.7, 666.6, 487.6, 542.7, 711.2, 721.3, 685.5, 741.3, 687.4, 525.3, 514.4, 714.2, 689.1, 681.6, 671.1, 702.8, 661.1, 586.5, 822.5, 611.4, 657.0, 707.7, 667.0, 519.4, 507.4, 700.4, 681.6, 654.6, 732.9, 681.1, 503.1, 526.2, 709.0, 651.8, 650.8, 675.9, 695.1, 560.2, 539.5, 644.1, 658.0, 685.2, 688.6, 698.8, 522.4, 505.8, 622.5]}, "top10": {"labels": ["[네] NVR_CMP_01_브랜드KW", "[네] NVR_CMP_03_재구매", "[네] NVR_CMP_02_일반KW", "[구] GGL_CMP_02_리타겟팅", "[구] GGL_CMP_03_첫구매", "[메] META_CMP_03_재구매", "[구] GGL_CMP_01_플러스가입", "[메] META_CMP_02_룩얼라이크", "[메] META_CMP_01_신규유저"], "roas": [129.39, 37.23, 34.71, 15.2, 8.45, 8.36, 7.87, 3.51, 2.35], "channel": ["네이버", "네이버", "네이버", "구글", "구글", "메타", "구글", "메타", "메타"]}, "gap": {"labels": ["구글", "네이버", "메타"], "pur_gap": [77.8, 77.8, 74.5], "rev_gap": [82.5, 82.4, 82.6]}, "ctype": {"labels": ["TXT", "CRS", "VID", "IMG"], "roas": [60.09, 9.71, 9.69, 9.02], "cost": [23.1, 168.9, 171.4, 223.0]}};
+
+// ── Chart defaults ──────────────────────────────────────────────────────
+Chart.defaults.color = '#8b949e';
+Chart.defaults.borderColor = '#21262d';
+Chart.defaults.font.family = "'Outfit', sans-serif";
+
+const CH_COLORS = {'구글':'#4285F4','메타':'#1877F2','네이버':'#03C75A'};
+const chColors = D.channel.labels.map(l => CH_COLORS[l] || '#4C9BE8');
+
+// ── 채널별 광고비 ──────────────────────────────────────────────────────
+new Chart(document.getElementById('chCost'), {
+  type:'bar',
+  data:{labels:D.channel.labels, datasets:[{
+    label:'광고비(백만원)', data:D.channel.cost,
+    backgroundColor: chColors.map(c=>c+'cc'), borderColor: chColors,
+    borderWidth:1.5, borderRadius:6
+  }]},
+  options:{responsive:true, plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false}}, y:{grid:{color:'#21262d'}}}}
+});
+
+// ── 채널별 ROAS ────────────────────────────────────────────────────────
+new Chart(document.getElementById('chRoas'), {
+  type:'bar',
+  data:{labels:D.channel.labels, datasets:[{
+    label:'ROAS(AF)', data:D.channel.roas,
+    backgroundColor: chColors.map(c=>c+'cc'), borderColor: chColors,
+    borderWidth:1.5, borderRadius:6
+  }]},
+  options:{responsive:true, plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false}}, y:{grid:{color:'#21262d'}}}}
+});
+
+// ── 일별 ROAS 트렌드 ───────────────────────────────────────────────────
+new Chart(document.getElementById('trendRoas'), {
+  type:'line',
+  data:{labels:D.daily.labels, datasets:[{
+    label:'ROAS(AF)', data:D.daily.roas,
+    borderColor:'#03C75A', backgroundColor:'rgba(3,199,90,.08)',
+    borderWidth:2, pointRadius:0, fill:true, tension:.3
+  }]},
+  options:{responsive:true, plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{display:false}, ticks:{maxTicksLimit:12}},
+      y:{grid:{color:'#21262d'}}
+    }}
+});
+
+// ── Top10 테이블 ────────────────────────────────────────────────────────
+const tbody = document.getElementById('top10Body');
+D.top10.labels.forEach((lbl, i) => {
+  const ch = D.top10.channel[i];
+  const cls = ch==='구글'?'badge-g':ch==='메타'?'badge-m':'badge-n';
+  tbody.innerHTML += `<tr>
+    <td style="color:var(--muted)">${i+1}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</td>
+    <td><span class="badge ${cls}">${ch}</span></td>
+    <td class="roas-num">${D.top10.roas[i].toFixed(2)}x</td>
+  </tr>`;
+});
+
+// ── 소재 유형별 ROAS ───────────────────────────────────────────────────
+const TYPE_LABEL = {'VID':'🎬 동영상','IMG':'🖼️ 이미지','CRS':'🎠 카루셀','TXT':'📝 텍스트','BRD':'🔍 브랜드검색'};
+const ctypeLabels = D.ctype.labels.map(l => TYPE_LABEL[l]||l);
+new Chart(document.getElementById('ctypeRoas'), {
+  type:'bar',
+  data:{labels:ctypeLabels, datasets:[{
+    label:'ROAS(AF)', data:D.ctype.roas,
+    backgroundColor:'#4C9BE8cc', borderColor:'#4C9BE8',
+    borderWidth:1.5, borderRadius:6
+  }]},
+  options:{
+    indexAxis:'y', responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:'#21262d'}}, y:{grid:{display:false}}}
+  }
+});
+
+// ── 구매 갭 바 ─────────────────────────────────────────────────────────
+const gapContainer = document.getElementById('purGapBars');
+D.gap.labels.forEach((ch, i) => {
+  const pct = D.gap.pur_gap[i];
+  const color = pct>=80?'#3fb950':pct>=60?'#d29922':'#f85149';
+  gapContainer.innerHTML += `
+    <div class="gap-item">
+      <span class="gap-channel">${ch}</span>
+      <div class="gap-bar-wrap">
+        <div class="gap-bar" style="width:${Math.min(pct,100)}%;background:${color}">${pct}%</div>
+      </div>
+      <span class="gap-val" style="color:${color}">${pct}%</span>
+    </div>`;
+});
+
+// ── 매출 갭 차트 ───────────────────────────────────────────────────────
+const gapColors = D.gap.rev_gap.map(v => v>=80?'#3fb950cc':v>=60?'#d29922cc':'#f85149cc');
+new Chart(document.getElementById('gapChart'), {
+  type:'bar',
+  data:{labels:D.gap.labels, datasets:[
+    {label:'매출 갭 (%)', data:D.gap.rev_gap, backgroundColor:gapColors, borderColor:gapColors.map(c=>c.slice(0,-2)), borderWidth:1.5, borderRadius:6},
+  ]},
+  options:{responsive:true,
+    plugins:{legend:{display:false}, annotation:{}},
+    scales:{
+      x:{grid:{display:false}},
+      y:{grid:{color:'#21262d'}, min:0, max:100,
+         ticks:{callback:v=>v+'%'}}
+    }}
+});
+</script>
+</body>
+</html>
