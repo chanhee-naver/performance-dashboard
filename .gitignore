@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.png
+*.ipynb
+*.xlsx
+Postgres/
+postgres_search/
+*.pub
+*.pem
+toss_eda_dashboard.html
+roas_calculator.html
+analysis.py
+dashboards/
