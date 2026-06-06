@@ -2,11 +2,19 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import json
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 from data_loader import load_data, get_monthly
+
+DATA_DIR = Path(__file__).parent.parent / "data"
+
+@st.cache_data
+def load_metric_hierarchy():
+    with open(DATA_DIR / "metric_hierarchy.json", encoding="utf-8") as f:
+        return json.load(f)
 
 df_all = load_data()
 monthly = get_monthly(df_all)
@@ -206,3 +214,47 @@ with st.container(border=True):
     st.plotly_chart(fig_bar)
 
     st.dataframe(cmp_df, hide_index=True)
+
+st.divider()
+
+# ── Metric Hierarchy 구조표 ──────────────────────────────────────────────────
+with st.container(border=True):
+    st.subheader("🗂️ Metric Hierarchy 구조표")
+    st.caption("반복사용을 정점으로 한 지표 계층 — 레벨별 공식 및 역할 정의")
+
+    try:
+        mh_data = load_metric_hierarchy()
+        mh_df = pd.DataFrame(mh_data)
+        mh_df.columns = ["레벨", "지표", "공식", "역할"]
+
+        level_order = ["비즈니스 결과", "활성 행동", "전환", "활성", "획득", "관심", "도달", "효율"]
+        mh_df["레벨_순서"] = mh_df["레벨"].apply(
+            lambda x: level_order.index(x) if x in level_order else 99
+        )
+        mh_df = mh_df.sort_values("레벨_순서").drop(columns="레벨_순서")
+
+        level_colors = {
+            "비즈니스 결과": "🔵",
+            "활성 행동": "🟢",
+            "전환": "🟡",
+            "활성": "🟡",
+            "획득": "🟠",
+            "관심": "🟠",
+            "도달": "🔴",
+            "효율": "⚪",
+        }
+        mh_df["레벨"] = mh_df["레벨"].apply(lambda x: f"{level_colors.get(x, '')} {x}")
+
+        st.dataframe(
+            mh_df,
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "레벨": st.column_config.TextColumn("레벨", width="medium"),
+                "지표": st.column_config.TextColumn("지표", width="medium"),
+                "공식": st.column_config.TextColumn("공식", width="large"),
+                "역할": st.column_config.TextColumn("역할", width="large"),
+            },
+        )
+    except Exception as e:
+        st.warning(f"Metric Hierarchy 데이터 로드 실패: {e}")

@@ -17,6 +17,20 @@ ag_m = get_adgroup_monthly(df_all)
 AUG = "2025-08"
 SEP = "2025-09"
 
+DATA_DIR = Path(__file__).parent.parent / "data"
+
+@st.cache_data
+def load_repeat_driver():
+    return pd.read_csv(DATA_DIR / "sep_repeat_driver_decomposition.csv")
+
+@st.cache_data
+def load_cpa_driver():
+    return pd.read_csv(DATA_DIR / "sep_cpa_driver_decomposition.csv")
+
+@st.cache_data
+def load_segments():
+    return pd.read_csv(DATA_DIR / "sep_segment_changes.csv")
+
 st.title("🔍 9월 이슈 드릴다운")
 st.caption("8월 대비 9월 반복사용수·단가 급변 원인 심층 분석")
 st.divider()
@@ -69,6 +83,203 @@ for i, (label, aug_val, sep_val, chg) in enumerate(metrics):
 st.divider()
 
 st.info("📌 **핵심 결론**: 다른 전환율은 ±0.2% 이내로 안정적. **광고노출 +31.8%**가 반복사용 +31.7% 증가의 핵심 드라이버.")
+
+st.divider()
+
+# ── Waterfall: 반복사용 증가 원인 분해 ──────────────────────────────────────
+with st.container(border=True):
+    st.subheader("📊 반복사용 증가 원인 분해 (로그 기여도)")
+    st.caption("각 퍼널 단계가 반복사용수 MoM 증가에 기여한 비율 — 광고노출이 98.9% 기여")
+
+    scope_tab = st.selectbox(
+        "분석 범위",
+        ["전체", "계좌개설", "회원가입"],
+        key="wf_scope",
+    )
+
+    try:
+        repeat_df = load_repeat_driver()
+        wf_data = repeat_df[repeat_df["scope"] == scope_tab].copy()
+
+        label_map = {
+            "광고노출": "광고노출",
+            "CTR": "CTR",
+            "클릭설치율": "클릭→설치율",
+            "설치실행율": "설치→실행율",
+            "실행가입율": "실행→가입율",
+            "가입계좌개설율": "가입→계좌율",
+            "계좌첫거래율": "계좌→첫거래율",
+            "첫거래반복사용율": "첫거래→반복율",
+        }
+        wf_data["label"] = wf_data["metric"].map(label_map).fillna(wf_data["metric"])
+        wf_data = wf_data.sort_values("contribution_pct", ascending=False)
+
+        measures = []
+        texts = []
+        for _, r in wf_data.iterrows():
+            measures.append("relative")
+            pct = r["contribution_pct"] * 100
+            texts.append(f"{pct:+.1f}%")
+
+        fig_wf = go.Figure(go.Waterfall(
+            name="기여도",
+            orientation="v",
+            measure=measures,
+            x=wf_data["label"].tolist(),
+            y=(wf_data["contribution_pct"] * 100).tolist(),
+            text=texts,
+            textposition="outside",
+            connector=dict(line=dict(color="rgba(100,100,100,0.4)", width=1, dash="dot")),
+            increasing=dict(marker=dict(color="#4F9CF9")),
+            decreasing=dict(marker=dict(color="#FF6B6B")),
+        ))
+        fig_wf.add_hline(y=0, line_width=1, line_color="rgba(150,150,150,0.5)")
+        fig_wf.update_layout(
+            height=400,
+            yaxis_title="기여도 (%)",
+            margin=dict(l=0, r=0, t=20, b=0),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig_wf)
+
+        dom_driver = wf_data.iloc[0]
+        st.caption(
+            f"💡 **{scope_tab} 범위**: "
+            f"'{dom_driver['label']}' 단계가 반복사용 증가의 "
+            f"**{dom_driver['contribution_pct']*100:.1f}%**를 설명합니다."
+        )
+    except Exception as e:
+        st.warning(f"원인분해 데이터 로드 실패: {e}")
+
+st.divider()
+
+# ── CPA 단가 변화 분해 ────────────────────────────────────────────────────────
+with st.container(border=True):
+    st.subheader("💸 반복사용당 단가 변화 원인 분해")
+    st.caption("광고비 증가(CPA 악화 요인) vs 반복사용 증가(CPA 개선 요인) 상쇄 관계")
+
+    try:
+        cpa_df = load_cpa_driver()
+        scope_tab2 = st.selectbox(
+            "분석 범위",
+            ["전체", "계좌개설", "회원가입"],
+            key="cpa_scope",
+        )
+        cpa_data = cpa_df[cpa_df["scope"] == scope_tab2].copy()
+
+        fig_cpa = go.Figure()
+        colors_cpa = {
+            "광고비": "#FF6B6B",
+            "반복사용": "#4F9CF9",
+        }
+        for _, r in cpa_data.iterrows():
+            pct = r["contribution_pct"] * 100
+            fig_cpa.add_trace(go.Bar(
+                name=r["metric"],
+                x=[r["metric"]],
+                y=[pct],
+                marker_color=colors_cpa.get(r["metric"], "#888"),
+                text=[f"{pct:+.1f}%"],
+                textposition="outside",
+                width=0.5,
+            ))
+
+        fig_cpa.add_hline(y=0, line_width=1.5, line_color="rgba(150,150,150,0.6)")
+        fig_cpa.update_layout(
+            height=340,
+            yaxis_title="단가 변화 기여도 (%)",
+            showlegend=False,
+            margin=dict(l=0, r=0, t=20, b=0),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            barmode="group",
+        )
+        st.plotly_chart(fig_cpa)
+
+        cost_row = cpa_data[cpa_data["metric"] == "광고비"].iloc[0]
+        rep_row  = cpa_data[cpa_data["metric"] == "반복사용"].iloc[0]
+        st.markdown(
+            f"- 광고비 +{cost_row['mom']*100:.1f}% → CPA **+{cost_row['contribution_pct']*100:.1f}%** 상승 압력  \n"
+            f"- 반복사용 +{rep_row['mom']*100:.1f}% → CPA **{rep_row['contribution_pct']*100:.1f}%** 상쇄  \n"
+            f"- 순 CPA 변화: **+{(cost_row['contribution_pct']+rep_row['contribution_pct'])*100:.1f}%**"
+        )
+    except Exception as e:
+        st.warning(f"CPA 분해 데이터 로드 실패: {e}")
+
+st.divider()
+
+# ── 세그먼트 버블 산점도 ────────────────────────────────────────────────────
+with st.container(border=True):
+    st.subheader("🫧 세그먼트별 효율 vs 반복사용 증분")
+    st.caption("x축: 반복사용 증분(절대량) | y축: CPA_반복사용(9월) | 버블 크기: 광고노출 증분")
+
+    try:
+        seg_df = load_segments()
+        seg_type = st.selectbox(
+            "세그먼트 유형",
+            ["전체", "channel", "creative_format", "ad_group", "campaign_objective"],
+            format_func=lambda x: {
+                "전체": "전체 보기",
+                "channel": "채널",
+                "creative_format": "소재 형식",
+                "ad_group": "광고 그룹",
+                "campaign_objective": "캠페인 목적",
+            }.get(x, x),
+            key="seg_type",
+        )
+
+        if seg_type == "전체":
+            plot_df = seg_df.copy()
+        else:
+            plot_df = seg_df[seg_df["segment_type"] == seg_type].copy()
+
+        type_color_map = {
+            "channel": "#4285F4",
+            "creative_format": "#F5A623",
+            "ad_group": "#44BB44",
+            "campaign_objective": "#B47FFF",
+        }
+
+        fig_bub = go.Figure()
+        for seg_t in plot_df["segment_type"].unique():
+            sub = plot_df[plot_df["segment_type"] == seg_t]
+            fig_bub.add_trace(go.Scatter(
+                x=sub["반복사용_delta"],
+                y=sub["CPA_반복사용_target"],
+                mode="markers+text",
+                name={"channel": "채널", "creative_format": "소재",
+                      "ad_group": "광고그룹", "campaign_objective": "목적"}.get(seg_t, seg_t),
+                marker=dict(
+                    size=np.sqrt(sub["광고노출_delta"] / sub["광고노출_delta"].max()) * 60 + 10,
+                    color=type_color_map.get(seg_t, "#888"),
+                    opacity=0.75,
+                    line=dict(width=1.5, color="rgba(255,255,255,0.4)"),
+                ),
+                text=sub["segment"],
+                textposition="top center",
+                textfont=dict(size=11),
+                hovertemplate=(
+                    "<b>%{text}</b><br>"
+                    "반복사용 증분: %{x:,.0f}건<br>"
+                    "CPA_반복사용(9월): ₩%{y:,.0f}<br>"
+                    "<extra></extra>"
+                ),
+            ))
+
+        fig_bub.update_layout(
+            height=450,
+            xaxis_title="반복사용 증분 (건)",
+            yaxis_title="CPA_반복사용 9월 (원)",
+            legend=dict(orientation="h", y=-0.15),
+            margin=dict(l=0, r=0, t=20, b=0),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig_bub)
+        st.caption("🔵 왼쪽 하단 = 소규모 증분·저단가(효율), 오른쪽 상단 = 대규모 증분·고단가(볼륨 우선)")
+    except Exception as e:
+        st.warning(f"세그먼트 데이터 로드 실패: {e}")
 
 st.divider()
 
@@ -150,10 +361,12 @@ with st.container(border=True):
                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig3)
 
-    st.caption(
-        f"영상: MoM +{merged_cr[merged_cr['creative_format']=='영상']['노출_MoM'].values[0]:.1f}% | "
-        f"이미지: MoM +{merged_cr[merged_cr['creative_format']=='이미지']['노출_MoM'].values[0]:.1f}%"
-    )
+    try:
+        vid_row = merged_cr[merged_cr['creative_format']=='영상']['노출_MoM'].values[0]
+        img_row = merged_cr[merged_cr['creative_format']=='이미지']['노출_MoM'].values[0]
+        st.caption(f"영상: MoM +{vid_row:.1f}% | 이미지: MoM +{img_row:.1f}%")
+    except IndexError:
+        pass
 
 # ── 결론 ──────────────────────────────────────────────────────────────────────
 st.divider()
