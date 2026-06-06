@@ -116,67 +116,6 @@ with st.container(border=True):
 
 st.divider()
 
-# ── Metric Tree (Treemap) ──────────────────────────────────────────────────────
-with st.container(border=True):
-    st.subheader("🌳 Metric Hierarchy Tree (반복사용수 분해)")
-
-    # Build contribution analysis
-    # 반복사용 = 노출 * CTR * 클릭설치 * 설치실행 * 실행가입 * 가입계좌 * 계좌첫거래 * 첫거래반복
-    # Contributions via ln decomposition (MoM)
-    prev_repeat = prev_row["반복사용"]
-    cur_repeat  = row["반복사용"]
-    total_change = cur_repeat - prev_repeat
-
-    driver_cols = {
-        "광고노출":     "광고노출",
-        "CTR":          "CTR",
-        "클릭→설치율":  "클릭_설치율",
-        "설치→실행율":  "설치_실행율",
-        "실행→가입율":  "실행_가입율",
-        "가입→계좌율":  "가입_계좌율",
-        "계좌→첫거래율":"계좌_첫거래율",
-        "첫거래→반복율":"첫거래_반복율",
-    }
-
-    contrib_data = []
-    for label, col in driver_cols.items():
-        c_val = row[col]
-        p_val = prev_row[col]
-        if p_val and p_val != 0:
-            pct_change = (c_val / p_val - 1) * 100
-        else:
-            pct_change = 0
-        contrib_data.append({"지표": label, "MoM변화율(%)": pct_change, "현재값": c_val})
-
-    contrib_df = pd.DataFrame(contrib_data)
-
-    labels = ["반복사용수"] + contrib_df["지표"].tolist()
-    parents = [""] + ["반복사용수"] * len(contrib_df)
-    values = [abs(total_change) if total_change != 0 else 1] + [max(abs(v), 0.001) for v in contrib_df["MoM변화율(%)"]]
-    colors = ["#4F9CF9"] + [
-        "#FF4444" if v > 0 else "#44BB44" if v < 0 else "#888"
-        for v in contrib_df["MoM변화율(%)"]
-    ]
-
-    fig_tree = go.Figure(go.Treemap(
-        labels=labels,
-        parents=parents,
-        values=values,
-        marker=dict(colors=colors),
-        texttemplate="<b>%{label}</b><br>MoM: %{customdata:.1f}%",
-        customdata=[0] + contrib_df["MoM변화율(%)"].tolist(),
-        hovertemplate="<b>%{label}</b><br>MoM 변화율: %{customdata:.2f}%<extra></extra>",
-    ))
-    fig_tree.update_layout(
-        height=400, margin=dict(l=0, r=0, t=10, b=0),
-        paper_bgcolor="rgba(0,0,0,0)",
-    )
-    st.plotly_chart(fig_tree)
-
-    st.caption("🔴 빨간색 = MoM 증가(비용 증가 포함), 🟢 초록색 = MoM 감소")
-
-st.divider()
-
 # ── 전환율 MoM 비교 ───────────────────────────────────────────────────────────
 with st.container(border=True):
     st.subheader(f"📊 {selected_month} vs 전월 드라이버 비교")

@@ -31,7 +31,7 @@ def load_cpa_driver():
 def load_segments():
     return pd.read_csv(DATA_DIR / "sep_segment_changes.csv")
 
-st.title("🔍 9월 이슈 드릴다운")
+st.title("🔍 9월 이슈 드릴다운 (26년1학기 중간고사)")
 st.caption("8월 대비 9월 반복사용수·단가 급변 원인 심층 분석")
 st.divider()
 
