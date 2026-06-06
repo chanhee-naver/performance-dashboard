@@ -68,50 +68,7 @@ for i, (label, aug_val, sep_val, chg) in enumerate(metrics):
 
 st.divider()
 
-# ── 8월 vs 9월 분해 테이블 ────────────────────────────────────────────────────
-st.subheader("📋 8월 vs 9월 전환율 비교 (PDF 핵심 분석)")
-
-compare_metrics = [
-    ("광고노출", "광고노출", 1e6, "M"),
-    ("CTR(%)", "CTR", 1, "%"),
-    ("클릭→설치(%)", "클릭_설치율", 1, "%"),
-    ("설치→실행(%)", "설치_실행율", 1, "%"),
-    ("실행→가입(%)", "실행_가입율", 1, "%"),
-    ("가입→계좌(%)", "가입_계좌율", 1, "%"),
-    ("계좌→첫거래(%)", "계좌_첫거래율", 1, "%"),
-    ("첫거래→반복(%)", "첫거래_반복율", 1, "%"),
-    ("반복사용수", "반복사용", 1, "num"),
-]
-
-table_rows = []
-for label, col, scale, fmt in compare_metrics:
-    a_val = aug[col] / scale
-    s_val = sep[col] / scale
-    mom = (s_val / a_val - 1) * 100 if a_val else 0
-    if fmt == "M":
-        a_str = f"{a_val:.1f}M"
-        s_str = f"{s_val:.1f}M"
-    elif fmt == "%":
-        a_str = f"{a_val:.2f}%"
-        s_str = f"{s_val:.2f}%"
-    else:
-        a_str = f"{a_val:,.0f}"
-        s_str = f"{s_val:,.0f}"
-    dominant = "⭐ 핵심 드라이버" if abs(mom) > 10 else ""
-    table_rows.append({"지표": label, "8월": a_str, "9월": s_str,
-                       "MoM": f"{mom:+.1f}%", "판단": dominant})
-
-tbl_df = pd.DataFrame(table_rows)
-st.dataframe(
-    tbl_df.style.applymap(
-        lambda v: "background-color: #ffe0e0" if "+" in str(v) and float(str(v).replace("+","").replace("%","")) > 10 else
-                  "background-color: #e0ffe0" if "-" in str(v) else "",
-        subset=["MoM"]
-    ),
-    hide_index=True,
-)
-
-st.info("📌 **결론**: 다른 전환율은 ±0.2% 이내로 안정적. **광고노출 +31.8%**가 반복사용 +31.7% 증가의 핵심 드라이버.")
+st.info("📌 **핵심 결론**: 다른 전환율은 ±0.2% 이내로 안정적. **광고노출 +31.8%**가 반복사용 +31.7% 증가의 핵심 드라이버.")
 
 st.divider()
 
