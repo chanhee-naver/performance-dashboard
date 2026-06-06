@@ -5,6 +5,7 @@ __pycache__/
 *.png
 *.ipynb
 *.xlsx
+!fintech_dashboard/data.xlsx
 Postgres/
 postgres_search/
 *.pub
