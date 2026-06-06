@@ -225,38 +225,107 @@ for ins in insights:
 st.divider()
 st.subheader("📊 인사이트 우선순위 매트릭스")
 
-priority_data = pd.DataFrame([
-    {"인사이트": f"#{i['no']} {i['category']}", "영향도": 5 if i["level"]=="critical" else 4 if i["level"]=="high" else 3 if i["level"]=="medium" else 2,
-     "실행용이성": 3 + (i["no"] % 3), "카테고리": i["category"]}
-    for i in insights
-])
+# 각 인사이트에 고유 좌표 직접 지정 (겹침 방지)
+priority_items = [
+    {"no": 1,  "label": "#1 9월 이슈",     "영향도": 5.0, "실행용이성": 4.2, "color": "#FF4444"},
+    {"no": 2,  "label": "#2 채널 효율",    "영향도": 5.0, "실행용이성": 5.5, "color": "#4285F4"},
+    {"no": 3,  "label": "#3 9월 원인",     "영향도": 4.2, "실행용이성": 1.8, "color": "#888888"},
+    {"no": 4,  "label": "#4 소재 효율",    "영향도": 4.0, "실행용이성": 4.8, "color": "#F5A623"},
+    {"no": 5,  "label": "#5 타겟팅",       "영향도": 4.0, "실행용이성": 3.5, "color": "#44BB44"},
+    {"no": 6,  "label": "#6 퍼널 병목",    "영향도": 3.5, "실행용이성": 2.5, "color": "#B47FFF"},
+    {"no": 7,  "label": "#7 캠페인 목적",  "영향도": 3.5, "실행용이성": 3.0, "color": "#FF6B6B"},
+    {"no": 8,  "label": "#8 연간 트렌드",  "영향도": 3.0, "실행용이성": 4.5, "color": "#4F9CF9"},
+    {"no": 9,  "label": "#9 채널 구조",    "영향도": 3.8, "실행용이성": 5.2, "color": "#1877F2"},
+    {"no": 10, "label": "#10 9월 이후",    "영향도": 3.5, "실행용이성": 4.0, "color": "#FF8C00"},
+    {"no": 11, "label": "#11 소재 키워드", "영향도": 2.8, "실행용이성": 5.5, "color": "#DAA520"},
+    {"no": 12, "label": "#12 종합",        "영향도": 2.0, "실행용이성": 4.8, "color": "#888888"},
+]
 
 fig_matrix = go.Figure()
-colors_map = {"9월 이슈": "#FF4444", "채널 효율": "#4285F4", "소재 효율": "#F5A623",
-              "타겟팅": "#44BB44", "퍼널 병목": "#B47FFF", "캠페인 목적": "#FF6B6B",
-              "연간 트렌드": "#4F9CF9", "채널 구조": "#1877F2", "9월 이후": "#FF8C00",
-              "소재 키워드": "#DAA520", "종합": "#888"}
 
-for cat in priority_data["카테고리"].unique():
-    sub = priority_data[priority_data["카테고리"]==cat]
+# 사분면 배경 색
+fig_matrix.add_shape(type="rect", x0=3, y0=3, x1=6.5, y1=6.5,
+                     fillcolor="rgba(68,187,68,0.06)", line_width=0)
+fig_matrix.add_shape(type="rect", x0=0, y0=3, x1=3, y1=6.5,
+                     fillcolor="rgba(245,166,35,0.06)", line_width=0)
+fig_matrix.add_shape(type="rect", x0=3, y0=0, x1=6.5, y1=3,
+                     fillcolor="rgba(79,156,249,0.06)", line_width=0)
+fig_matrix.add_shape(type="rect", x0=0, y0=0, x1=3, y1=3,
+                     fillcolor="rgba(200,50,50,0.04)", line_width=0)
+
+# 기준선
+fig_matrix.add_shape(type="line", x0=3, y0=0, x1=3, y1=6.5,
+                     line=dict(dash="dot", color="rgba(150,150,150,0.5)", width=1))
+fig_matrix.add_shape(type="line", x0=0, y0=3, x1=6.5, y1=3,
+                     line=dict(dash="dot", color="rgba(150,150,150,0.5)", width=1))
+
+# 사분면 레이블
+for txt, x, y, col in [
+    ("🚀 즉시 실행", 5.0, 6.1, "rgba(68,187,68,0.9)"),
+    ("📋 계획 후 실행", 1.5, 6.1, "rgba(245,166,35,0.9)"),
+    ("⏳ 여건 갖춰지면", 5.0, 0.3, "rgba(79,156,249,0.7)"),
+    ("🔻 낮은 우선순위", 1.5, 0.3, "rgba(150,150,150,0.6)"),
+]:
+    fig_matrix.add_annotation(
+        x=x, y=y, text=txt, showarrow=False,
+        font=dict(color=col, size=11),
+    )
+
+# 각 포인트: 점(큰 원) + 번호 텍스트만
+for item in priority_items:
     fig_matrix.add_trace(go.Scatter(
-        x=sub["실행용이성"], y=sub["영향도"],
+        x=[item["실행용이성"]],
+        y=[item["영향도"]],
         mode="markers+text",
-        text=sub["인사이트"],
-        textposition="top center",
-        marker=dict(size=16, color=colors_map.get(cat, "#888")),
-        name=cat,
+        marker=dict(size=34, color=item["color"], opacity=0.85,
+                    line=dict(width=1.5, color="rgba(255,255,255,0.3)")),
+        text=[f"<b>#{item['no']}</b>"],
+        textposition="middle center",
+        textfont=dict(color="white", size=11),
+        name=item["label"],
+        hovertemplate=(
+            f"<b>{item['label']}</b><br>"
+            f"영향도: {item['영향도']}<br>"
+            f"실행 용이성: {item['실행용이성']}<extra></extra>"
+        ),
+        showlegend=True,
     ))
 
-fig_matrix.add_shape(type="line", x0=3, y0=0, x1=3, y1=6, line=dict(dash="dot", color="gray"))
-fig_matrix.add_shape(type="line", x0=0, y0=3, x1=6, y1=3, line=dict(dash="dot", color="gray"))
-fig_matrix.add_annotation(x=5, y=5.5, text="즉시 실행", showarrow=False, font=dict(color="green"))
-fig_matrix.add_annotation(x=1.5, y=5.5, text="계획 수립 후 실행", showarrow=False, font=dict(color="orange"))
 fig_matrix.update_layout(
-    height=450, xaxis=dict(title="실행 용이성", range=[0, 6]),
-    yaxis=dict(title="영향도", range=[0, 6]),
-    legend=dict(orientation="h", y=-0.3),
-    margin=dict(l=0, r=0, t=10, b=0),
-    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+    height=500,
+    xaxis=dict(title="← 실행 어려움 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 실행 용이성 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 실행 쉬움 →",
+               range=[0, 6.5], showgrid=False, zeroline=False),
+    yaxis=dict(title="← 영향 낮음 &nbsp; 영향도 &nbsp; 영향 높음 →",
+               range=[0, 6.5], showgrid=False, zeroline=False),
+    legend=dict(
+        orientation="v", x=1.02, y=1, xanchor="left",
+        font=dict(size=11),
+        bgcolor="rgba(0,0,0,0)",
+    ),
+    margin=dict(l=10, r=160, t=20, b=10),
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
 )
 st.plotly_chart(fig_matrix)
+
+# 우선순위 순위표
+st.subheader("🏆 우선순위 순위표")
+rank_df = pd.DataFrame([
+    {
+        "순위": i + 1,
+        "인사이트": item["label"],
+        "영향도": item["영향도"],
+        "실행용이성": item["실행용이성"],
+        "우선순위 점수": round(item["영향도"] * item["실행용이성"], 1),
+    }
+    for i, item in enumerate(
+        sorted(priority_items, key=lambda x: x["영향도"] * x["실행용이성"], reverse=True)
+    )
+])
+st.dataframe(rank_df, hide_index=True,
+             column_config={
+                 "우선순위 점수": st.column_config.ProgressColumn(
+                     "우선순위 점수",
+                     min_value=0, max_value=35, format="%.1f"
+                 )
+             })

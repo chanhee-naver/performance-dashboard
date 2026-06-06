@@ -134,8 +134,26 @@ for c in ["CPI(원)", "CPM(원)", "CPA_가입(원)", "CPA_반복(원)"]:
 disp["CTR(%)"] = disp["CTR(%)"].round(3)
 
 st.dataframe(
-    disp.style.background_gradient(subset=["CPA_반복(원)"], cmap="RdYlGn_r"),
+    disp,
     hide_index=True,
+    column_config={
+        "CPA_반복(원)": st.column_config.NumberColumn(
+            "CPA_반복(원)",
+            format="₩%d",
+        ),
+        "CPA_가입(원)": st.column_config.NumberColumn(
+            "CPA_가입(원)",
+            format="₩%d",
+        ),
+        "CPI(원)": st.column_config.NumberColumn(
+            "CPI(원)",
+            format="₩%d",
+        ),
+        "CPM(원)": st.column_config.NumberColumn(
+            "CPM(원)",
+            format="₩%d",
+        ),
+    },
 )
 
 # 효율 인사이트 박스
